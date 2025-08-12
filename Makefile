@@ -1,12 +1,31 @@
-.PHONY: clean run
-.SILENT:
+APP := cube
+SRC := cube.c
+CC  := gcc
+CFLAGS := -std=c11 -Wall -Wextra -Wconversion -pedantic -O2 $(shell pkg-config --cflags sdl2)
+LDFLAGS := $(shell pkg-config --libs sdl2) -lm
 
-cube.o: cube.c
-	gcc -o $@ $< -lm
+.PHONY: all run clean cmake cmake-build cmake-run
 
-run: cube.o
-	./$<
+all: $(APP)
+
+$(APP): $(SRC)
+	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+
+run: $(APP)
+	./$(APP)
 
 clean:
-	rm -rf cube.o
+	rm -f $(APP)
+	rm -rf build
+
+# CMake helpers
+cmake:
+	cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+cmake-build: cmake
+	cmake --build build --config Release -j
+
+cmake-run: cmake-build
+	./build/$(APP)
+
 
