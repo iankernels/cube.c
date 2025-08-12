@@ -1,14 +1,22 @@
-cmake_minimum_required(VERSION 3.0.0)
-project(cube VERSION 0.1.0 LANGUAGES C)
+cmake_minimum_required(VERSION 3.14)
 
-include(CTest)
-enable_testing()
+project(cube C)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
+# Warnings
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+  add_compile_options(-Wall -Wextra -Wconversion -pedantic -O2)
+endif()
+
+find_package(SDL2 REQUIRED)
 
 add_executable(cube cube.c)
-if (UNIX)
-  target_link_libraries(cube m)
-endif (UNIX)
+target_link_libraries(cube PRIVATE SDL2::SDL2 m)
 
-set(CPACK_PROJECT_NAME ${PROJECT_NAME})
-set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
-include(CPack)
+# For IDEs, set the working directory to the project dir
+set_property(TARGET cube PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+
