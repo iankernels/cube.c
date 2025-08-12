@@ -1,132 +1,159 @@
+#include <SDL2/SDL.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-#ifndef _WIN32
-#include <unistd.h>
-#else
-#include <windows.h>
-void usleep(__int64 usec)
-{
-  HANDLE timer;
-  LARGE_INTEGER ft;
 
-  ft.QuadPart = -(10 * usec); // Convert to 100 nanosecond interval, negative value indicates relative time
-
-  timer = CreateWaitableTimer(NULL, TRUE, NULL);
-  SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0);
-  WaitForSingleObject(timer, INFINITE);
-  CloseHandle(timer);
-}
-#endif
+#define WIDTH 480
+#define HEIGHT 360
+#define WINDOW_SCALE 2
 
 float A, B, C;
 
-float cubeWidth = 20;
-int width = 160, height = 44;
-float zBuffer[160 * 44];
-char buffer[160 * 44];
-int backgroundASCIICode = '.';
-int distanceFromCam = 100;
-float horizontalOffset;
-float K1 = 40;
+float cubeWidth = 45;
 
-float incrementSpeed = 0.6;
+float zBuffer[WIDTH * HEIGHT];
+unsigned char buffer[WIDTH * HEIGHT];
+
+int backgroundASCIICode = ' ';
+float distanceFromCamera = 100.0f;
+
+float horizontalOffset;
+float K1 = 40.0f;
+
+float incrementSpeed = 0.5f;
 
 float x, y, z;
 float ooz;
+
 int xp, yp;
 int idx;
 
-float calculateX(int i, int j, int k) {
-  return j * sin(A) * sin(B) * cos(C) - k * cos(A) * sin(B) * cos(C) +
-         j * cos(A) * sin(C) + k * sin(A) * sin(C) + i * cos(B) * cos(C);
+float calculateX(float i, float j, float k) {
+    return j * sinf(A) * sinf(B) * cosf(C) - k * cosf(A) * sinf(B) * cosf(C) +
+           j * cosf(A) * sinf(C) + k * sinf(A) * sinf(C) + i * cosf(B) * cosf(C);
 }
 
-float calculateY(int i, int j, int k) {
-  return j * cos(A) * cos(C) + k * sin(A) * cos(C) -
-         j * sin(A) * sin(B) * sin(C) + k * cos(A) * sin(B) * sin(C) -
-         i * cos(B) * sin(C);
+float calculateY(float i, float j, float k) {
+    return j * cosf(A) * cosf(C) + k * sinf(A) * cosf(C) -
+           j * sinf(A) * sinf(B) * sinf(C) + k * cosf(A) * sinf(B) * sinf(C) -
+           i * cosf(B) * sinf(C);
 }
 
-float calculateZ(int i, int j, int k) {
-  return k * cos(A) * cos(B) - j * sin(A) * cos(B) + i * sin(B);
+float calculateZ(float i, float j, float k) {
+    return k * cosf(A) * cosf(B) - j * sinf(A) * cosf(B) + i * sinf(B);
 }
 
-void calculateForSurface(float cubeX, float cubeY, float cubeZ, int ch) {
-  x = calculateX(cubeX, cubeY, cubeZ);
-  y = calculateY(cubeX, cubeY, cubeZ);
-  z = calculateZ(cubeX, cubeY, cubeZ) + distanceFromCam;
+void calculateForSurface(float cubeX, float cubeY, float cubeZ, unsigned char ch) {
+    x = calculateX(cubeX, cubeY, cubeZ);
+    y = calculateY(cubeX, cubeY, cubeZ);
+    z = calculateZ(cubeX, cubeY, cubeZ) + distanceFromCamera;
 
-  ooz = 1 / z;
+    ooz = 1.0f / z;
 
-  xp = (int)(width / 2 + horizontalOffset + K1 * ooz * x * 2);
-  yp = (int)(height / 2 + K1 * ooz * y);
+    xp = (int)(WIDTH / 2.0f + horizontalOffset + K1 * ooz * x);
+    yp = (int)(HEIGHT / 2.0f + K1 * ooz * y);
 
-  idx = xp + yp * width;
-  if (idx >= 0 && idx < width * height) {
-    if (ooz > zBuffer[idx]) {
-      zBuffer[idx] = ooz;
-      buffer[idx] = ch;
+    idx = xp + yp * WIDTH;
+    if (idx >= 0 && idx < WIDTH * HEIGHT) {
+        if (ooz > zBuffer[idx]) {
+            zBuffer[idx] = ooz;
+            buffer[idx] = ch;
+        }
     }
-  }
 }
 
-int main() {
-  printf("\x1b[2J");
-  while (1) {
-    memset(buffer, backgroundASCIICode, width * height);
-    memset(zBuffer, 0, width * height * 4);
-    cubeWidth = 20;
-    horizontalOffset = -2 * cubeWidth;
-    // first cube
-    for (float cubeX = -cubeWidth; cubeX < cubeWidth; cubeX += incrementSpeed) {
-      for (float cubeY = -cubeWidth; cubeY < cubeWidth;
-           cubeY += incrementSpeed) {
-        calculateForSurface(cubeX, cubeY, -cubeWidth, '@');
-        calculateForSurface(cubeWidth, cubeY, cubeX, '$');
-        calculateForSurface(-cubeWidth, cubeY, -cubeX, '~');
-        calculateForSurface(-cubeX, cubeY, cubeWidth, '#');
-        calculateForSurface(cubeX, -cubeWidth, -cubeY, ';');
-        calculateForSurface(cubeX, cubeWidth, cubeY, '+');
-      }
-    }
-    cubeWidth = 10;
-    horizontalOffset = 1 * cubeWidth;
-    // second cube
-    for (float cubeX = -cubeWidth; cubeX < cubeWidth; cubeX += incrementSpeed) {
-      for (float cubeY = -cubeWidth; cubeY < cubeWidth;
-           cubeY += incrementSpeed) {
-        calculateForSurface(cubeX, cubeY, -cubeWidth, '@');
-        calculateForSurface(cubeWidth, cubeY, cubeX, '$');
-        calculateForSurface(-cubeWidth, cubeY, -cubeX, '~');
-        calculateForSurface(-cubeX, cubeY, cubeWidth, '#');
-        calculateForSurface(cubeX, -cubeWidth, -cubeY, ';');
-        calculateForSurface(cubeX, cubeWidth, cubeY, '+');
-      }
-    }
-    cubeWidth = 5;
-    horizontalOffset = 8 * cubeWidth;
-    // third cube
-    for (float cubeX = -cubeWidth; cubeX < cubeWidth; cubeX += incrementSpeed) {
-      for (float cubeY = -cubeWidth; cubeY < cubeWidth;
-           cubeY += incrementSpeed) {
-        calculateForSurface(cubeX, cubeY, -cubeWidth, '@');
-        calculateForSurface(cubeWidth, cubeY, cubeX, '$');
-        calculateForSurface(-cubeWidth, cubeY, -cubeX, '~');
-        calculateForSurface(-cubeX, cubeY, cubeWidth, '#');
-        calculateForSurface(cubeX, -cubeWidth, -cubeY, ';');
-        calculateForSurface(cubeX, cubeWidth, cubeY, '+');
-      }
-    }
-    printf("\x1b[H");
-    for (int k = 0; k < width * height; k++) {
-      putchar(k % width ? buffer[k] : 10);
+int main(int argc, char* argv[]) {
+    (void)argc;
+    (void)argv;
+
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        printf("SDL_Init failed. %s\n", SDL_GetError());
+        return 1;
     }
 
-    A += 0.05;
-    B += 0.05;
-    C += 0.01;
-    usleep(8000 * 2);
-  }
-  return 0;
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+    SDL_Window* window = SDL_CreateWindow("Cube",
+        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        WIDTH * WINDOW_SCALE, HEIGHT * WINDOW_SCALE, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+
+    if (!window) {
+        printf("Window error. %s\n", SDL_GetError());
+        SDL_Quit();
+        return 1;
+    }
+
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1,
+        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+
+    if (!renderer) {
+        printf("Renderer error. %s\n", SDL_GetError());
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
+
+    SDL_RenderSetLogicalSize(renderer, WIDTH, HEIGHT);
+
+    int running = 1;
+    SDL_Event event;
+
+    while (running) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) running = 0;
+            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) running = 0;
+        }
+
+        memset(buffer, ' ', WIDTH * HEIGHT);
+        memset(zBuffer, 0, sizeof(zBuffer));
+
+        horizontalOffset = 0.0f;
+
+        for (float cubeX = -cubeWidth; cubeX < cubeWidth; cubeX += incrementSpeed) {
+            for (float cubeY = -cubeWidth; cubeY < cubeWidth; cubeY += incrementSpeed) {
+                calculateForSurface(cubeX, cubeY, -cubeWidth, '@');
+                calculateForSurface(cubeWidth, cubeY, cubeX, '$');
+                calculateForSurface(-cubeWidth, cubeY, -cubeX, '~');
+                calculateForSurface(-cubeX, cubeY, cubeWidth, '#');
+                calculateForSurface(cubeX, -cubeWidth, -cubeY, ';');
+                calculateForSurface(cubeX, cubeWidth, cubeY, '+');
+            }
+        }
+
+        A += 0.03f;
+        B += 0.02f;
+        C += 0.01f;
+
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
+
+        for (int i = 0; i < WIDTH * HEIGHT; i++) {
+            if (buffer[i] != ' ') {
+                int x = i % WIDTH;
+                int y = i / WIDTH;
+
+                switch (buffer[i]) {
+                    case '@': SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255); break;
+                    case '$': SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255); break;
+                    case '~': SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255); break;
+                    case '#': SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255); break;
+                    case ';': SDL_SetRenderDrawColor(renderer, 0, 255, 255, 255); break;
+                    case '+': SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255); break;
+                    default: SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); break;
+                }
+
+                SDL_Rect rect = { x, y, 1, 1 };
+                SDL_RenderFillRect(renderer, &rect);
+            }
+        }
+
+        SDL_RenderPresent(renderer);
+
+        SDL_Delay(16); // ~60 fps
+    }
+
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+
+    return 0;
 }
